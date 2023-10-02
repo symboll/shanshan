@@ -1,7 +1,10 @@
 <template>
   <div class="home">
-    <canvas class="bg-canvas" ref="bg-canvas"></canvas>
-    <canvas class="canvas" ref="canvas"></canvas>
+    <button @click="getMapHandler()">get map</button>
+    <div class="image">
+      <canvas class="bg-canvas" ref="bg-canvas"></canvas>
+      <canvas class="canvas" ref="canvas"></canvas>
+    </div>
   </div>
 </template>
 
@@ -18,7 +21,7 @@ const LINE_Y_GAP = 100
 
 const DEFAULT_TIMES = 3 // 画布缩放尺寸  1920 / 640
 
-const BACKGROUND = 'rgba(220, 220, 220, 1)'
+const BACKGROUND = '#ffffff'
 const COLOR = '#42b983'
 export default {
   name: 'HomeView',
@@ -28,37 +31,37 @@ export default {
       bgCtx: null,
       tree: [
         {
-          id: '1',
+          id: 'zs-1',
           name: 'zhangsan',
           child: [
             {
-              id: '1-1',
+              id: 'zs-1-1',
               name: 'zhangsan-1'
             },
             {
-              id: '1-2',
+              id: 'zs-1-2',
               name: 'zhansgan-2'
             }
           ]
         },
         {
-          id: '2',
+          id: 'ls-2',
           name: 'lisi'
         },
         {
-          id: '3',
+          id: 'ww-3',
           name: 'wangwu',
           child: [
             {
-              id: '3-1',
+              id: 'ww-3-1',
               name: 'wangwu - 1'
             },
             {
-              id: '3-2',
+              id: 'ww-3-2',
               name: 'wangwu - 2',
               child: [
                 {
-                  id: '3-2-1',
+                  id: 'ww-3-2-1',
                   name: 'wangwu - 2 - 1'
                 }
               ]
@@ -78,7 +81,10 @@ export default {
       ],
 
       treeToList: [],
-      map: {}, // treeItem -> listItem
+      map: {
+        'ww-3-2-1': '1'
+      }, // treeItem -> listItem
+      mapWithStartAndEndPoint: {},
       currentFlag: '', // 'treeItem', 'listItem', ''
       currentPosition: {},
       firstId: '',
@@ -92,9 +98,11 @@ export default {
     this.drawTreeData()
     this.drawListData()
 
+    this.initMapWithStartEndPoint()
+
     this.ctx.drawImage(this.$refs['bg-canvas'], 0, 0, CANVAS_WIDTH, CANVAS_HIGHT)
 
-    // this.drawLine()
+    this.drawMapLine()
   },
   methods: {
     initCanvasRenderingContext2D () {
@@ -108,14 +116,11 @@ export default {
       this.$refs.canvas.height = CANVAS_HIGHT
       this.ctx = this.$refs.canvas.getContext('2d')
 
-      // this.$refs.canvas.addEventListener('click', (event) => this.clickHandler(event))
       this.$refs.canvas.addEventListener('mousedown', (event) => this.mousedownHandler(event))
       this.$refs.canvas.addEventListener('mousemove', (event) => this.mousemoveHandler(event))
       this.$refs.canvas.addEventListener('mouseup', (event) => this.mouseupHandler(event))
     },
-    // clickHandler (event) {
-    //   console.log('clickHandler', event, event.offsetX, event.offsetY)
-    // },
+
     mousedownHandler (event) {
       const { offsetX, offsetY } = event
       const mouseX = offsetX * DEFAULT_TIMES; const mouseY = offsetY * DEFAULT_TIMES
@@ -175,12 +180,17 @@ export default {
           }
         }
       }
+
+      this.mapWithStartAndEndPoint = {}
+      this.initMapWithStartEndPoint()
+
       // 鼠标抬起的时候，落入另一个卡片之中，需要画线连接
       if (this.lastId) {
         this.drawLine({ mouseX, mouseY })
       } else {
         this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HIGHT)
         this.ctx.drawImage(this.$refs['bg-canvas'], 0, 0, CANVAS_WIDTH, CANVAS_HIGHT)
+        this.drawMapLine()
       }
 
       this.firstId = ''
@@ -283,6 +293,7 @@ export default {
     drawLine ({ mouseX, mouseY }) {
       this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HIGHT)
       this.ctx.drawImage(this.$refs['bg-canvas'], 0, 0, CANVAS_WIDTH, CANVAS_HIGHT)
+      this.drawMapLine()
 
       let startX, startY
       if (this.currentFlag === 'treeItem') {
@@ -300,23 +311,84 @@ export default {
       this.ctx.stroke()
       this.ctx.restore()
       this.ctx.closePath()
+    },
+    initMapWithStartEndPoint () {
+      Object.entries(this.map).forEach(([key, value]) => {
+        const keyDetail = this.treeToList.find(item => item.id === key)
+        const valueDetail = this.list.find(item => item.id === value)
+
+        if (keyDetail && valueDetail) {
+          const startPoint = {
+            x: keyDetail.position.x + keyDetail.position.w,
+            y: keyDetail.position.y + keyDetail.position.h / 2
+          }
+          const endPoint = {
+            x: valueDetail.position.x,
+            y: valueDetail.position.y + valueDetail.position.h / 2
+          }
+
+          if (!this.mapWithStartAndEndPoint[key]) {
+            this.mapWithStartAndEndPoint[key] = {
+              startPoint,
+              endPointList: [endPoint],
+              endId: value
+            }
+          } else {
+            this.mapWithStartAndEndPoint[key].endPointList.push(endPoint)
+          }
+        }
+      })
+    },
+
+    drawMapLine () {
+      Object.entries(this.mapWithStartAndEndPoint).forEach(([key, value]) => {
+        const startPoint = value.startPoint
+        value.endPointList.forEach(endPoint => {
+          this.drawMapSingleLine(startPoint, endPoint)
+        })
+      })
+    },
+
+    drawMapSingleLine (start, end) {
+      this.ctx.beginPath()
+      this.ctx.save()
+      this.ctx.moveTo(start.x, start.y)
+      this.ctx.lineTo(end.x, end.y)
+      this.ctx.strokeStyle = COLOR
+      this.ctx.stroke()
+      this.ctx.restore()
+      this.ctx.closePath()
+    },
+
+    getMapHandler () {
+      console.log(this.map)
     }
+
   }
 }
 </script>
 
 <style scoped lang="less">
 .home {
-  position: relative;
-  .canvas,
-  .bg-canvas {
-    position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  .image {
+    position: relative;
     width: 640px;
     height: 360px;
-  }
- .canvas {
 
-    z-index: 2;
- }
+    .canvas,
+    .bg-canvas {
+      position: absolute;
+      width: 640px;
+      height: 360px;
+    }
+
+    .canvas {
+      z-index: 2;
+    }
+  }
 }
 </style>
