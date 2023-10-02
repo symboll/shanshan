@@ -82,7 +82,7 @@ export default {
 
       treeToList: [],
       map: {
-        'ww-3-2-1': '1'
+        'ww-3-2-1': ['1']
       }, // treeItem -> listItem
       mapWithStartAndEndPoint: {},
       currentFlag: '', // 'treeItem', 'listItem', ''
@@ -161,7 +161,11 @@ export default {
           const { position: { x, y, w, h }, id } = this.list[i]
           if (endX >= x && endX <= x + w && endY >= y && endY <= y + h) {
             this.lastId = id
-            this.map[this.firstId] = this.lastId
+
+            if (!this.map[this.firstId]) {
+              this.map[this.firstId] = []
+            }
+            this.map[this.firstId].push(this.lastId)
 
             mouseX = x
             mouseY = y + CARD_HIGHT / 2
@@ -173,7 +177,10 @@ export default {
           const { position: { x, y, w, h }, id } = this.treeToList[i]
           if (endX >= x && endX <= x + w && endY >= y && endY <= y + h) {
             this.lastId = id
-            this.map[this.lastId] = this.firstId
+            if (!this.map[this.lastId]) {
+              this.map[this.lastId] = []
+            }
+            this.map[this.lastId].push(this.firstId)
 
             mouseX = x + CARD_WIDTH
             mouseY = y + CARD_HIGHT / 2
@@ -315,26 +322,28 @@ export default {
     initMapWithStartEndPoint () {
       Object.entries(this.map).forEach(([key, value]) => {
         const keyDetail = this.treeToList.find(item => item.id === key)
-        const valueDetail = this.list.find(item => item.id === value)
+        const valueDetailList = this.list.filter(item => value.includes(item.id))
 
-        if (keyDetail && valueDetail) {
+        if (keyDetail && valueDetailList) {
           const startPoint = {
             x: keyDetail.position.x + keyDetail.position.w,
             y: keyDetail.position.y + keyDetail.position.h / 2
           }
-          const endPoint = {
-            x: valueDetail.position.x,
-            y: valueDetail.position.y + valueDetail.position.h / 2
-          }
+          const endPointList = valueDetailList.map(item => {
+            return {
+              x: item.position.x,
+              y: item.position.y + item.position.h / 2
+            }
+          })
 
           if (!this.mapWithStartAndEndPoint[key]) {
             this.mapWithStartAndEndPoint[key] = {
               startPoint,
-              endPointList: [endPoint],
+              endPointList: [...endPointList],
               endId: value
             }
           } else {
-            this.mapWithStartAndEndPoint[key].endPointList.push(endPoint)
+            this.mapWithStartAndEndPoint[key].endPointList.push(...endPointList)
           }
         }
       })
